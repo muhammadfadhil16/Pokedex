@@ -1,116 +1,131 @@
 const apiUrl = 'https://pokeapi.co/api/v2/pokemon';
+const searchInput = document.getElementById('search-input');
 let currentPage = 1;
-const limit = 12; // Batas jumlah Pokémon per halaman
-let totalPokemon = 0; // Variabel untuk menyimpan total Pokémon
-let allPokemon = []; // Variabel untuk menyimpan semua Pokémon
-
-// Fungsi untuk mengambil dan menampilkan daftar Pokémon
-function fetchPokemonList(page = 1) {
-    const offset = (page - 1) * limit;
-    fetch(`${apiUrl}?limit=${limit}&offset=${offset}`)
-        .then(response => response.json())
-        .then(data => {
-            totalPokemon = data.count; // Ambil total Pokémon dari response
-            const pokemonRequests = data.results.map(pokemon =>
-                fetch(pokemon.url).then(response => response.json())
-            );
-            return Promise.all(pokemonRequests);
-        })
-        .then(pokemonDetails => {
-            allPokemon = pokemonDetails; // Simpan semua Pokémon
-            displayPokemonList(allPokemon);
-            updatePageInfo(page); // Perbarui informasi halaman
-        })
-        .catch(error => {
-            showError('Failed to fetch Pokémon list. Please try again.');
-            console.error('Error:', error);
-        });
-}
+const limit = 20; // Batasi 20 Pokémon per halaman
+let totalPokemon = 0;
 
 // Fungsi untuk menampilkan daftar Pokémon
-function displayPokemonList(pokemonList) {
-    const pokemonContainer = document.getElementById('pokemon-list');
-    pokemonContainer.innerHTML = ''; // Hapus konten sebelumnya
+function displayPokemon(pokemonList) {
+  const container = document.getElementById('pokemon-list');
+  container.innerHTML = ''; // Kosongkan container sebelum menampilkan hasil
 
-    pokemonList.forEach(pokemon => {
-        const pokemonItem = document.createElement('div');
-        pokemonItem.classList.add('bg-white', 'p-5', 'rounded', 'shadow-lg', 'cursor-pointer', 'text-center');
-        pokemonItem.innerHTML = `
-            <h3 class="text-xl font-bold">${pokemon.name}</h3>
-            <img src="${pokemon.sprites.front_default}" alt="${pokemon.name}" class="w-24 mx-auto mb-2">
-        `;
-        pokemonItem.addEventListener('click', () => {
-            displayPokemonDetails(pokemon); // Tampilkan detail Pokémon
-        });
-        pokemonContainer.appendChild(pokemonItem);
-    });
+  if (pokemonList.length === 0) {
+    container.innerHTML = '<p>No Pokémon found.</p>'; // Tampilkan pesan jika tidak ada hasil
+    return;
+  }
+
+  pokemonList.forEach(pokemon => {
+    const pokemonItem = document.createElement('div');
+    pokemonItem.classList.add(
+        'border', 'border-gray-300', 'rounded-lg', 'shadow-lg', 'p-4', 
+        'bg-white', 'hover:shadow-2xl', 'cursor-pointer', 'transition'
+    );
+    
+    pokemonItem.innerHTML = `
+      <h3 class="text-lg font-bold text-center capitalize mb-2">${pokemon.name}</h3>
+      <img src="${pokemon.sprites.front_default}" alt="${pokemon.name}" class="w-24 mx-auto">
+    `;
+
+    pokemonItem.addEventListener('click', () => displayPokemonDetails(pokemon));
+    container.appendChild(pokemonItem);
+});
+
 }
 
 // Fungsi untuk menampilkan detail Pokémon
 function displayPokemonDetails(pokemon) {
-    const detailsContainer = document.getElementById('pokemon-details');
-    document.getElementById('pokemon-name').innerText = pokemon.name;
-    document.getElementById('pokemon-image').src = pokemon.sprites.front_default;
-    document.getElementById('pokemon-info').innerHTML = `
-        <p><strong>Height:</strong> ${pokemon.height / 10} m</p>
-        <p><strong>Weight:</strong> ${pokemon.weight / 10} kg</p>
-        <p><strong>Type:</strong> ${pokemon.types.map(type => type.type.name).join(', ')}</p>
-    `;
+  const detailsContainer = document.getElementById('pokemon-details');
+  document.getElementById('pokemon-name').textContent = pokemon.name;
+  document.getElementById('pokemon-image').src = pokemon.sprites.front_default;
+  document.getElementById('pokemon-info').innerHTML = `
+    <p><strong>Height:</strong> ${pokemon.height / 10} m</p>
+    <p><strong>Weight:</strong> ${pokemon.weight / 10} kg</p>
+    <p><strong>Type:</strong> ${pokemon.types.map(type => type.type.name).join(', ')}</p>
+  `;
 
-    detailsContainer.classList.remove('hidden');
-    document.getElementById('pokemon-list').classList.add('hidden');
-    document.getElementById('page-control').classList.add('hidden');
+  detailsContainer.classList.remove('hidden');
+  document.getElementById('pokemon-list').classList.add('hidden');
+  document.getElementById('page-control').classList.add('hidden');
 }
 
-// Fungsi untuk kembali ke daftar Pokémon
-document.getElementById('back-btn').addEventListener('click', () => {
-    document.getElementById('pokemon-details').classList.add('hidden');
-    document.getElementById('pokemon-list').classList.remove('hidden');
-    document.getElementById('page-control').classList.remove('hidden');
-});
-
-// Fungsi untuk menangani error
-function showError(message) {
-    const errorMessage = document.getElementById('error-massage');
-    errorMessage.innerText = message;
-    errorMessage.classList.remove('hidden');
+// Fungsi untuk mengambil daftar Pokémon sesuai halaman
+function fetchPokemonList(page = 1) {
+  const offset = (page - 1) * limit;
+  
+  fetch(`${apiUrl}?limit=${limit}&offset=${offset}`)
+    .then(response => response.json())
+    .then(data => {
+      totalPokemon = data.count;
+      const pokemonPromises = data.results.map(pokemon => fetch(pokemon.url).then(res => res.json()));
+      return Promise.all(pokemonPromises);
+    })
+    .then(pokemonDetails => {
+      displayPokemon(pokemonDetails);
+      updatePageInfo(page);
+    })
+    .catch(error => {
+      console.error('Error fetching Pokémon:', error);
+    });
 }
 
-// Fungsi untuk memperbarui informasi halaman
-function updatePageInfo(currentPage) {
-    const totalPages = Math.ceil(totalPokemon / limit); // Hitung jumlah total halaman
-    document.getElementById('page-number').innerText = `Page ${currentPage} of ${totalPages}`;
-    document.getElementById('prev-btn').disabled = currentPage === 1;
-    document.getElementById('next-btn').disabled = currentPage === totalPages;
+// Fungsi untuk memperbarui tampilan informasi halaman
+function updatePageInfo(page) {
+  const totalPages = Math.ceil(totalPokemon / limit);
+  document.getElementById('page-number').textContent = `Page ${page} of ${totalPages}`;
+  document.getElementById('prev-btn').disabled = page === 1;
+  document.getElementById('next-btn').disabled = page === totalPages;
 }
 
-// Pencarian Pokémon berdasarkan input pengguna
-document.getElementById('search-input').addEventListener('input', function() {
-    const searchValue = document.getElementById('search-input').value.toLowerCase()
-    if (searchValue) {
-        const filteredPokemon = allPokemon.filter(pokemon =>
-            pokemon.name.toLowerCase().includes(searchValue)
-        );
-        displayPokemonList(filteredPokemon);
-    } else {
-        fetchPokemonList(currentPage);
-    }
-});
-
-// Navigasi halaman sebelumnya
+// Tombol navigasi halaman sebelumnya
 document.getElementById('prev-btn').addEventListener('click', () => {
-    if (currentPage > 1) {
-        currentPage--;
-        fetchPokemonList(currentPage);
-    }
+  if (currentPage > 1) {
+    currentPage--;
+    fetchPokemonList(currentPage);
+  }
 });
 
-// Navigasi halaman berikutnya
+// Tombol navigasi halaman berikutnya
 document.getElementById('next-btn').addEventListener('click', () => {
-    if (currentPage < Math.ceil(totalPokemon / limit)) {
-        currentPage++;
-        fetchPokemonList(currentPage);
-    }
+  if (currentPage < Math.ceil(totalPokemon / limit)) {
+    currentPage++;
+    fetchPokemonList(currentPage);
+  }
+});
+
+// Fungsi pencarian Pokémon berdasarkan input pengguna
+searchInput.addEventListener('input', (e) => {
+  const searchTerm = e.target.value.toLowerCase();
+
+  // Jika ada input pencarian, lakukan pencarian tanpa paginasi
+  if (searchTerm) {
+    fetch(`https://pokeapi.co/api/v2/pokemon?limit=1118`)
+      .then(response => response.json())
+      .then(data => {
+        const filteredPokemonPromises = data.results
+          .filter(pokemon => pokemon.name.toLowerCase().includes(searchTerm))
+          .map(pokemon => fetch(pokemon.url).then(res => res.json()));
+
+        Promise.all(filteredPokemonPromises).then(pokemonDetails => {
+          displayPokemon(pokemonDetails); // Tampilkan Pokémon yang difilter
+          document.getElementById('page-control').classList.add('hidden'); // Sembunyikan pagination
+        });
+      })
+      .catch(error => {
+        console.error('Error fetching Pokémon:', error);
+        displayPokemon([]); // Kosongkan daftar jika ada kesalahan
+      });
+  } else {
+    // Jika input pencarian kosong, kembali ke pagination default
+    document.getElementById('page-control').classList.remove('hidden');
+    fetchPokemonList(currentPage);
+  }
+});
+
+// Tombol kembali ke daftar Pokémon
+document.getElementById('back-btn').addEventListener('click', () => {
+  document.getElementById('pokemon-details').classList.add('hidden');
+  document.getElementById('pokemon-list').classList.remove('hidden');
+  document.getElementById('page-control').classList.remove('hidden');
 });
 
 // Inisialisasi: Memuat daftar Pokémon pertama kali
